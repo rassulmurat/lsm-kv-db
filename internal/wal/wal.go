@@ -40,7 +40,7 @@ func (w *WAL) Put(key string, value string, opts ...Option) error {
 	w.ch <- walReq{
 		rec:  []byte(fmt.Sprintf("%s:%s", key, value)),
 		sync: options.sync,
-		done: make(chan error),
+		done: make(chan error, 1),
 	}
 
 	return nil
