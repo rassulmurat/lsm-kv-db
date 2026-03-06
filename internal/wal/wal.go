@@ -3,69 +3,48 @@ package wal
 import (
 	"fmt"
 	"os"
-
-	"github.com/rassulmurat/lsm-kv-db/internal/config"
+	"path/filepath"
+	"time"
 )
 
-type WAL struct {
-	ch chan walReq
-	stopped chan struct{}
-}
-
-func New(cfg config.WalConfig) (*WAL, error) {
-	fd, err := os.OpenFile(cfg.Path, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	ch := make(chan walReq, 2048)
-	stopped := make(chan struct{})
-
-	go writerLoop(fd, ch, stopped, cfg)
-
-	return &WAL{
-		ch: ch,
-		stopped: stopped,
-	}, nil
-}
-
-func (w *WAL) Put(key string, value string, opts ...Option) error {
-	options := Options{
-		sync: true,
+func NewWALWriter(dirPath string, seq uint64, opts ...WriteOption) (*WALWriter, error) {
+	options := WriteOptions{
+		maxBatchBytes: 1024 * 1024, // 1MB
+		maxBatchDelay: 100 * time.Millisecond, // 100ms
 	}
 	for _, opt := range opts {
 		opt(&options)
 	}
-
-	w.ch <- walReq{
-		rec:  []byte(fmt.Sprintf("%s:%s", key, value)),
-		sync: options.sync,
-		done: make(chan error, 1),
+	w := WALWriter{
+		dirPath: dirPath,
+		options: options,
+		ch: make(chan WALWriteEvent, 1024),
+		stopped: make(chan struct{}),
 	}
 
-	return nil
+	filePath := filepath.Join(w.dirPath, fmt.Sprintf(walFileFormat, seq))
+    fd, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+    if err != nil {
+        return &WALWriter{},err
+    }
+	go w.writerLoop(fd)
+
+	return &w, nil
 }
 
-func (w *WAL) Close() error {
-	close(w.ch)
-	<-w.stopped
-	return nil
-}
+const walFileFormat = "%016d.wal"
 
-type walReq struct {
-    rec  []byte
-    sync bool
-    done chan error
-}
+type Operations uint8
 
-type Option func(*Options)
+const (
+	PUT Operations = iota + 1
+	DEL
+)
 
-type Options struct {
-	sync bool
-}
-
-func WithSync(sync bool) Option {
-	return func(o *Options) {
-		o.sync = sync
+func (o Operations) String() string {
+	names := [...]string{"", "PUT", "DEL"}
+	if int(o) < len(names) {
+		return names[o]
 	}
+	return "UNKNOWN"
 }

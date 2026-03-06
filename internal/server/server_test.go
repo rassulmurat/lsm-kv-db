@@ -15,14 +15,14 @@ import (
 
 func setupTestServer(t *testing.T) *Server {
 	tmpDir := t.TempDir()
-	walPath := filepath.Join(tmpDir, "wal.log")
+	walPath := filepath.Join(tmpDir, ".wal/")
 
 	cfg := &config.Config{
 		HttpConfig: config.HttpConfig{
 			Port: "8080",
 		},
 		WalConfig: config.WalConfig{
-			Path:          walPath,
+			DirPath:          walPath,
 			MaxBatchBytes: 1024 * 1024,
 			MaxBatchDelay: 100 * time.Millisecond,
 		},
@@ -44,7 +44,7 @@ func TestNewServer(t *testing.T) {
 			Port: "8080",
 		},
 		WalConfig: config.WalConfig{
-			Path:          walPath,
+			DirPath:          walPath,
 			MaxBatchBytes: 1024 * 1024,
 			MaxBatchDelay: 100 * time.Millisecond,
 		},

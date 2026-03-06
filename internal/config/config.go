@@ -3,7 +3,7 @@ package config
 import "time"
 
 type WalConfig struct {
-	Path string
+	DirPath string
 	MaxBatchBytes int
 	MaxBatchDelay time.Duration
 }
@@ -24,7 +24,7 @@ func NewConfig() *Config {
 			Port: "8080",
 		},
 		WalConfig: WalConfig{
-			Path: "./wal.log",
+			DirPath: ".wal/",
 			MaxBatchBytes: 1024 * 1024, // 1MB
 			MaxBatchDelay: 100 * time.Millisecond, // 100ms
 		},
